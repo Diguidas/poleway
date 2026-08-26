@@ -3,6 +3,7 @@ import '../models/pedido.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../widgets/status_chip.dart';
+import 'rastreamento_screen.dart';
 
 class DetalhePedidoScreen extends StatefulWidget {
   final Pedido pedido;
@@ -139,6 +140,26 @@ class _DetalhePedidoScreenState extends State<DetalhePedidoScreen> {
                 concluida: etapas[i].$2,
                 ultima: i == etapas.length - 1,
               ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => RastreamentoScreen(ordem: pedido.ordem),
+                    ),
+                  );
+                },
+                icon: Icon(Icons.local_shipping_outlined, color: p.laranja),
+                label: Text('Rastrear caminhão', style: TextStyle(color: p.laranja)),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: p.laranja),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
           ],
         ),
       ),
