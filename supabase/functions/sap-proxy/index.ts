@@ -1,12 +1,12 @@
-// Proxy entre o Flutter (Pole Way) e o middleware SAP.
-// A x-api-key fica guardada como secret aqui no servidor e nunca chega ao cliente web.
-
-const MIDDLEWARE_BASE = "https://middleware.polealimentos.com.br/api/v1";
+// Proxy entre o Flutter (Pole Way) e o gateway SAP (erpgateway).
+// Usuário e senha ficam guardados como secrets aqui no servidor e nunca chegam ao cliente web.
+// Também resolve CORS, já que o gateway SAP não libera chamadas direto do navegador.
 
 const ROTAS: Record<string, { path: string; param: string }> = {
-  cliente: { path: "clienteSAP", param: "codigo" },
-  pedidos: { path: "pedidosSAP", param: "cliente" },
-  itens: { path: "itensSAP", param: "ordem" },
+  cliente: { path: "get_clientes_agrupados", param: "codigocli" },
+  pedidos: { path: "get_pedidos", param: "codigocli" },
+  itens: { path: "get_itens", param: "ordem" },
+  documentos: { path: "get_documentos", param: "codigocli" },
 };
 
 const corsHeaders = {
@@ -29,24 +29,30 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        message: "Parâmetros inválidos. Use ?recurso=cliente|pedidos|itens&valor=...",
+        message: "Parâmetros inválidos. Use ?recurso=cliente|pedidos|itens|documentos&valor=...",
       }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
-  const apiKey = Deno.env.get("SAP_MIDDLEWARE_API_KEY");
-  if (!apiKey) {
+  // SAP_ENV troca entre "qas" e "prd" sem precisar reimplantar a function.
+  const ambiente = Deno.env.get("SAP_ENV") ?? "qas";
+  const usuario = Deno.env.get("SAP_USUARIO") ?? "abap";
+  const senha = Deno.env.get("SAP_SENHA");
+
+  if (!senha) {
     return new Response(
-      JSON.stringify({ success: false, message: "SAP_MIDDLEWARE_API_KEY não configurada." }),
+      JSON.stringify({ success: false, message: "SAP_SENHA não configurada." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
-  const alvo = `${MIDDLEWARE_BASE}/${rota.path}?${rota.param}=${encodeURIComponent(valor)}`;
+  const base = `https://api${ambiente}.sap.sladm.com.br/sap/bc/apis_pole/erpgateway`;
+  const alvo = `${base}/${rota.path}?${rota.param}=${encodeURIComponent(valor)}`;
+  const auth = `Basic ${btoa(`${usuario}:${senha}`)}`;
 
   const resposta = await fetch(alvo, {
-    headers: { "x-api-key": apiKey },
+    headers: { Authorization: auth },
   });
 
   const corpo = await resposta.text();

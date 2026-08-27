@@ -4,6 +4,7 @@ class Cliente {
   final String codigo;
   final String nomeFantasia;
   final String razaoSocial;
+  final String cnpjCpf;
   final String endereco;
   final String telefone;
   final double limiteTotal;
@@ -17,6 +18,7 @@ class Cliente {
     required this.codigo,
     required this.nomeFantasia,
     required this.razaoSocial,
+    required this.cnpjCpf,
     required this.endereco,
     required this.telefone,
     required this.limiteTotal,
@@ -38,6 +40,7 @@ class Cliente {
       codigo: (json['codigocli'] ?? '').toString().trim(),
       nomeFantasia: (json['nome_fantasia'] ?? '').toString().trim(),
       razaoSocial: (json['razao_social'] ?? '').toString().trim(),
+      cnpjCpf: (json['cnpj_cpf'] ?? '').toString().trim(),
       endereco: (json['endereco'] ?? '').toString().trim(),
       telefone: (json['telefone'] ?? '').toString().trim(),
       limiteTotal: double.tryParse((json['limite_total'] ?? '').toString().trim()) ?? 0,

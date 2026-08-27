@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 import '../theme.dart';
@@ -17,12 +19,17 @@ class RastreamentoScreen extends StatefulWidget {
 
 class _RastreamentoScreenState extends State<RastreamentoScreen> with SingleTickerProviderStateMixin {
   // Coordenadas de teste: origem (caminhão) até destino (cliente).
-  static const _origem = LatLng(-3.846631134405548, -38.66692505096813); // Av. Paulista, SP
-  static const _destino = LatLng(-3.8747090097492856, -38.599987842744945); // Consolação/Higienópolis, SP
+  static const _origem = LatLng(-3.846631134405548, -38.66692505096813);
+  static const _destino = LatLng(-3.8747090097492856, -38.599987842744945);
 
   final _mapController = MapController();
+  final _distancia = const Distance();
   late final AnimationController _animController;
   late final Animation<double> _progresso;
+
+  List<LatLng> _rota = [_origem, _destino];
+  List<double> _distanciasAcumuladas = [0, 0];
+  bool _carregandoRota = true;
   LatLng _posicaoCaminhao = _origem;
 
   @override
@@ -32,20 +39,80 @@ class _RastreamentoScreenState extends State<RastreamentoScreen> with SingleTick
       vsync: this,
       duration: const Duration(seconds: 25),
     );
-    _progresso = CurvedAnimation(parent: _animController, curve: Curves.easeInOut);
+    _progresso = CurvedAnimation(parent: _animController, curve: Curves.linear);
     _progresso.addListener(_atualizarPosicao);
+    _carregarRota();
+  }
+
+  Future<void> _carregarRota() async {
+    try {
+      final uri = Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/'
+        '${_origem.longitude},${_origem.latitude};${_destino.longitude},${_destino.latitude}'
+        '?overview=full&geometries=geojson',
+      );
+      final resposta = await http.get(uri);
+      if (resposta.statusCode != 200) {
+        throw Exception('HTTP ${resposta.statusCode}');
+      }
+      final corpo = jsonDecode(resposta.body) as Map<String, dynamic>;
+      final rotas = corpo['routes'] as List?;
+      if (rotas == null || rotas.isEmpty) {
+        throw Exception('Sem rota retornada.');
+      }
+      final coordenadas = (rotas.first['geometry']['coordinates'] as List)
+          .map((c) => LatLng((c as List)[1] as double, c[0] as double))
+          .toList();
+
+      setState(() {
+        _rota = coordenadas;
+        _distanciasAcumuladas = _calcularAcumuladas(coordenadas);
+        _posicaoCaminhao = coordenadas.first;
+        _carregandoRota = false;
+      });
+    } catch (_) {
+      // Sem rota real disponível (ex.: sem internet para o serviço de roteamento):
+      // cai de volta para a linha reta como aproximação.
+      setState(() {
+        _rota = [_origem, _destino];
+        _distanciasAcumuladas = _calcularAcumuladas(_rota);
+        _carregandoRota = false;
+      });
+    }
     _animController.forward();
   }
 
+  List<double> _calcularAcumuladas(List<LatLng> pontos) {
+    final acumuladas = <double>[0];
+    for (var i = 1; i < pontos.length; i++) {
+      acumuladas.add(acumuladas.last + _distancia(pontos[i - 1], pontos[i]));
+    }
+    return acumuladas;
+  }
+
   void _atualizarPosicao() {
-    final t = _progresso.value;
-    setState(() {
-      _posicaoCaminhao = LatLng(
-        _origem.latitude + (_destino.latitude - _origem.latitude) * t,
-        _origem.longitude + (_destino.longitude - _origem.longitude) * t,
+    final distanciaTotal = _distanciasAcumuladas.last;
+    final distanciaAlvo = distanciaTotal * _progresso.value;
+
+    var i = 0;
+    while (i < _distanciasAcumuladas.length - 1 && _distanciasAcumuladas[i + 1] < distanciaAlvo) {
+      i++;
+    }
+
+    LatLng posicao;
+    if (i >= _rota.length - 1) {
+      posicao = _rota.last;
+    } else {
+      final distanciaSegmento = _distanciasAcumuladas[i + 1] - _distanciasAcumuladas[i];
+      final t = distanciaSegmento == 0 ? 0.0 : (distanciaAlvo - _distanciasAcumuladas[i]) / distanciaSegmento;
+      posicao = LatLng(
+        _rota[i].latitude + (_rota[i + 1].latitude - _rota[i].latitude) * t,
+        _rota[i].longitude + (_rota[i + 1].longitude - _rota[i].longitude) * t,
       );
-    });
-    _mapController.move(_posicaoCaminhao, _mapController.camera.zoom);
+    }
+
+    setState(() => _posicaoCaminhao = posicao);
+    _mapController.move(posicao, _mapController.camera.zoom);
   }
 
   double get _rotacaoCaminhao {
@@ -93,7 +160,7 @@ class _RastreamentoScreenState extends State<RastreamentoScreen> with SingleTick
                     PolylineLayer(
                       polylines: [
                         Polyline(
-                          points: [_origem, _destino],
+                          points: _rota,
                           strokeWidth: 4,
                           color: p.laranja.withValues(alpha: 0.5),
                         ),
@@ -120,6 +187,30 @@ class _RastreamentoScreenState extends State<RastreamentoScreen> with SingleTick
                     ),
                   ],
                 ),
+                if (_carregandoRota)
+                  Positioned(
+                    left: 12,
+                    top: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: p.superficie,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: p.laranja),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('Calculando rota...', style: TextStyle(color: p.textoSuave, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ),
                 Positioned(
                   right: 12,
                   bottom: 12,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'theme.dart';
-import 'screens/meus_pedidos_screen.dart';
+import 'screens/selecionar_cliente_screen.dart';
 
 void main() {
   runApp(const PolewayApp());
@@ -27,7 +27,7 @@ class _PolewayAppState extends State<PolewayApp> {
           themeMode: mode,
           theme: buildPolewayLightTheme(),
           darkTheme: buildPolewayDarkTheme(),
-          home: MeusPedidosScreen(themeMode: themeMode),
+          home: SelecionarClienteScreen(themeMode: themeMode),
         );
       },
     );

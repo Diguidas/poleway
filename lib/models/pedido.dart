@@ -67,6 +67,9 @@ class Pedido {
   final String notaFiscal;
   final String status;
   final String tipoPedido;
+  final String danfeUrl;
+  final String xmlUrl;
+  final String boletoUrl;
 
   Pedido({
     required this.ordem,
@@ -76,6 +79,9 @@ class Pedido {
     required this.notaFiscal,
     required this.status,
     required this.tipoPedido,
+    required this.danfeUrl,
+    required this.xmlUrl,
+    required this.boletoUrl,
   });
 
   factory Pedido.fromJson(Map<String, dynamic> jsonBruto) {
@@ -88,6 +94,9 @@ class Pedido {
       notaFiscal: _texto(json, 'nota_fiscal'),
       status: _texto(json, 'status'),
       tipoPedido: _texto(json, 'tp_ped'),
+      danfeUrl: _texto(json, 'danfe_url'),
+      xmlUrl: _texto(json, 'xml_url'),
+      boletoUrl: _texto(json, 'boleto_url'),
     );
   }
 

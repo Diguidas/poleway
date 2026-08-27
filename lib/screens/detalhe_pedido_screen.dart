@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../models/documento.dart';
 import '../models/pedido.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
@@ -7,8 +9,9 @@ import 'rastreamento_screen.dart';
 
 class DetalhePedidoScreen extends StatefulWidget {
   final Pedido pedido;
+  final DocumentoFinanceiro? documento;
 
-  const DetalhePedidoScreen({super.key, required this.pedido});
+  const DetalhePedidoScreen({super.key, required this.pedido, this.documento});
 
   @override
   State<DetalhePedidoScreen> createState() => _DetalhePedidoScreenState();
@@ -25,6 +28,29 @@ class _DetalhePedidoScreenState extends State<DetalhePedidoScreen> {
   }
 
   bool get _finalizado => widget.pedido.concluido;
+
+  Future<void> _abrir(BuildContext context, String url) async {
+    final uri = Uri.tryParse(url);
+    var aberto = false;
+    Object? erro;
+    if (uri == null) {
+      erro = 'URL inválida: "$url"';
+    } else {
+      try {
+        aberto = await launchUrl(uri, mode: LaunchMode.platformDefault);
+      } catch (e) {
+        erro = e;
+      }
+    }
+    if (!aberto) {
+      debugPrint('Falha ao abrir documento ($url): $erro');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível abrir o documento.${erro != null ? ' ($erro)' : ''}')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -229,6 +255,7 @@ class _DetalhePedidoScreenState extends State<DetalhePedidoScreen> {
 
   Widget _buildDocumentos(AppPalette p) {
     final pedido = widget.pedido;
+    final doc = widget.documento;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -239,17 +266,43 @@ class _DetalhePedidoScreenState extends State<DetalhePedidoScreen> {
             const SizedBox(height: 12),
             _DocumentoTile(
               icone: Icons.receipt_long_outlined,
-              titulo: 'Nota fiscal',
-              subtitulo: pedido.notaFiscal.isNotEmpty ? pedido.notaFiscal : 'Ainda não emitida',
-              disponivel: pedido.notaFiscal.isNotEmpty,
+              titulo: 'DANFE',
+              subtitulo: pedido.notaFiscal.isNotEmpty ? 'NF ${pedido.notaFiscal}' : 'Ainda não emitida',
+              disponivel: pedido.danfeUrl.isNotEmpty,
+              acao: () => _abrir(context, pedido.danfeUrl),
             ),
             const SizedBox(height: 10),
-            const _DocumentoTile(
-              icone: Icons.description_outlined,
-              titulo: 'Boleto',
-              subtitulo: 'Endpoint ainda não disponível',
-              disponivel: false,
+            _DocumentoTile(
+              icone: Icons.code_outlined,
+              titulo: 'XML da NF-e',
+              subtitulo: pedido.xmlUrl.isNotEmpty ? 'Arquivo XML disponível' : 'Ainda não disponível',
+              disponivel: pedido.xmlUrl.isNotEmpty,
+              acao: () => _abrir(context, pedido.xmlUrl),
             ),
+            const SizedBox(height: 10),
+            _DocumentoTile(
+              icone: Icons.qr_code_2_outlined,
+              titulo: 'Boleto',
+              subtitulo: pedido.boletoUrl.isNotEmpty ? 'Boleto disponível' : 'Ainda não disponível',
+              disponivel: pedido.boletoUrl.isNotEmpty,
+              acao: () => _abrir(context, pedido.boletoUrl),
+            ),
+            const SizedBox(height: 16),
+            if (doc != null)
+              _DocumentoTile(
+                icone: Icons.account_balance_wallet_outlined,
+                titulo: 'Situação financeira',
+                subtitulo:
+                    '${doc.status} · vencimento ${_formatarData(doc.vencimento)} · R\$ ${doc.valor.toStringAsFixed(2)}',
+                disponivel: false,
+              )
+            else
+              const _DocumentoTile(
+                icone: Icons.account_balance_wallet_outlined,
+                titulo: 'Situação financeira',
+                subtitulo: 'Nenhum documento financeiro vinculado a este pedido.',
+                disponivel: false,
+              ),
           ],
         ),
       ),
@@ -317,12 +370,14 @@ class _DocumentoTile extends StatelessWidget {
   final String titulo;
   final String subtitulo;
   final bool disponivel;
+  final VoidCallback? acao;
 
   const _DocumentoTile({
     required this.icone,
     required this.titulo,
     required this.subtitulo,
     required this.disponivel,
+    this.acao,
   });
 
   @override
@@ -336,7 +391,7 @@ class _DocumentoTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icone, color: p.laranja),
+          Icon(icone, color: disponivel ? p.laranja : p.textoSuave),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -348,13 +403,14 @@ class _DocumentoTile extends StatelessWidget {
             ),
           ),
           if (disponivel)
-            FilledButton(
-              onPressed: () {},
+            FilledButton.icon(
+              onPressed: acao,
+              icon: const Icon(Icons.open_in_new_rounded, size: 16),
+              label: const Text('Abrir'),
               style: FilledButton.styleFrom(
                 backgroundColor: p.laranja,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              child: const Text('Baixar'),
             ),
         ],
       ),
