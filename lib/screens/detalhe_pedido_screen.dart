@@ -66,7 +66,7 @@ class _DetalhePedidoScreenState extends State<DetalhePedidoScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final larguraConteudo = constraints.maxWidth > 800 ? 800.0 : constraints.maxWidth;
+            final larguraConteudo = constraints.maxWidth > 1100 ? 1100.0 : constraints.maxWidth;
             final margemLateral = (constraints.maxWidth - larguraConteudo) / 2 + 20;
 
             return SingleChildScrollView(
@@ -134,11 +134,21 @@ class _DetalhePedidoScreenState extends State<DetalhePedidoScreen> {
 
   Widget _buildAndamento(AppPalette p) {
     final pedido = widget.pedido;
-    final etapas = [
-      ('Pedido confirmado', true),
-      ('Em processamento', true),
-      ('Faturado', pedido.status.toLowerCase() == 'faturado'),
-      ('Entregue', false),
+    final statusLower = pedido.status.toLowerCase();
+    final recusado = statusLower == 'recusado';
+    final faturado = statusLower == 'faturado' || statusLower == 'faturado parcial';
+    final emProcessamento =
+        statusLower == 'liberado para faturamento' || statusLower == 'a faturar' || faturado || recusado;
+
+    final etapas = <(String, bool, bool)>[
+      ('Pedido confirmado', true, false),
+      ('Em processamento', emProcessamento, false),
+      if (recusado)
+        ('Recusado', true, true)
+      else ...[
+        (statusLower == 'faturado parcial' ? 'Faturado parcial' : 'Faturado', faturado, false),
+        ('Entregue', false, false),
+      ],
     ];
 
     return Card(
@@ -164,6 +174,7 @@ class _DetalhePedidoScreenState extends State<DetalhePedidoScreen> {
               _EtapaTile(
                 label: etapas[i].$1,
                 concluida: etapas[i].$2,
+                erro: etapas[i].$3,
                 ultima: i == etapas.length - 1,
               ),
             const SizedBox(height: 8),
@@ -231,23 +242,44 @@ class _DetalhePedidoScreenState extends State<DetalhePedidoScreen> {
   Widget _buildItemRow(AppPalette p, ItemPedido item) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            flex: 3,
-            child: Text(item.denominacao, style: TextStyle(fontSize: 14, color: p.texto)),
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: Text(item.denominacao, style: TextStyle(fontSize: 14, color: p.texto)),
+              ),
+              Expanded(
+                child: Text('${item.quantidade.toStringAsFixed(0)} ${item.unidadeVenda}',
+                    textAlign: TextAlign.center, style: TextStyle(color: p.textoSuave, fontSize: 13)),
+              ),
+              Expanded(
+                child: Text(
+                  'R\$ ${item.valorTotal.toStringAsFixed(2)}',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: p.texto),
+                ),
+              ),
+            ],
           ),
-          Expanded(
-            child: Text('${item.quantidade.toStringAsFixed(0)} ${item.unidadeVenda}',
-                textAlign: TextAlign.center, style: TextStyle(color: p.textoSuave, fontSize: 13)),
-          ),
-          Expanded(
-            child: Text(
-              'R\$ ${item.valorTotal.toStringAsFixed(2)}',
-              textAlign: TextAlign.right,
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: p.texto),
+          if (item.temRecusa) ...[
+            const SizedBox(height: 6),
+            _AvisoItem(
+              icone: Icons.block_outlined,
+              texto: item.recusa,
+              cor: p.vermelho,
             ),
-          ),
+          ],
+          if (item.temNotificacoes) ...[
+            const SizedBox(height: 6),
+            _AvisoItem(
+              icone: Icons.notifications_outlined,
+              texto: item.notificacoes,
+              cor: p.azul,
+            ),
+          ],
         ],
       ),
     );
@@ -315,17 +347,57 @@ class _DetalhePedidoScreenState extends State<DetalhePedidoScreen> {
   }
 }
 
+class _AvisoItem extends StatelessWidget {
+  final IconData icone;
+  final String texto;
+  final Color cor;
+
+  const _AvisoItem({required this.icone, required this.texto, required this.cor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: cor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icone, color: cor, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              texto,
+              style: TextStyle(color: cor, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EtapaTile extends StatelessWidget {
   final String label;
   final bool concluida;
+  final bool erro;
   final bool ultima;
 
-  const _EtapaTile({required this.label, required this.concluida, required this.ultima});
+  const _EtapaTile({
+    required this.label,
+    required this.concluida,
+    this.erro = false,
+    required this.ultima,
+  });
 
   @override
   Widget build(BuildContext context) {
     final p = AppPalette.of(context);
-    final cor = concluida ? p.laranja : p.textoSuave.withValues(alpha: 0.4);
+    final corAtiva = erro ? p.vermelho : p.laranja;
+    final cor = concluida ? corAtiva : p.textoSuave.withValues(alpha: 0.4);
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -336,7 +408,7 @@ class _EtapaTile extends StatelessWidget {
                 width: 14,
                 height: 14,
                 decoration: BoxDecoration(
-                  color: concluida ? p.laranja : p.superficie,
+                  color: concluida ? corAtiva : p.superficie,
                   shape: BoxShape.circle,
                   border: Border.all(color: cor, width: 2),
                 ),

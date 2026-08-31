@@ -32,6 +32,8 @@ class ItemPedido {
   final double quantidade;
   final String unidadeVenda;
   final double valorUnitario;
+  final String recusa;
+  final String notificacoes;
 
   ItemPedido({
     required this.item,
@@ -41,6 +43,8 @@ class ItemPedido {
     required this.quantidade,
     required this.unidadeVenda,
     required this.valorUnitario,
+    required this.recusa,
+    required this.notificacoes,
   });
 
   factory ItemPedido.fromJson(Map<String, dynamic> jsonBruto) {
@@ -53,10 +57,14 @@ class ItemPedido {
       quantidade: _numero(json, 'quantidade'),
       unidadeVenda: _texto(json, 'unidade_venda'),
       valorUnitario: _numero(json, 'valor_unitario'),
+      recusa: _texto(json, 'recusa'),
+      notificacoes: _texto(json, 'notificacoes'),
     );
   }
 
   double get valorTotal => quantidade * valorUnitario;
+  bool get temRecusa => recusa.isNotEmpty;
+  bool get temNotificacoes => notificacoes.isNotEmpty;
 }
 
 class Pedido {
@@ -100,8 +108,13 @@ class Pedido {
     );
   }
 
-  /// Pedidos "Faturado" contam como concluídos; qualquer outro status
-  /// (Recusado, Em processamento, etc.) fica na aba "Em aberto" por enquanto.
-  /// TODO: revisar quando soubermos todos os status possíveis do SAP.
-  bool get concluido => status.toLowerCase() == 'faturado';
+  /// Status finais do SAP: o pedido já foi processado (faturado, faturado
+  /// com alterações ou recusado). "Aguardando Liberação", "Liberado para
+  /// faturamento" e "A Faturar" ainda estão em processamento interno e
+  /// contam como "Em aberto".
+  bool get concluido => const {
+    'faturado',
+    'faturado parcial',
+    'recusado',
+  }.contains(status.toLowerCase());
 }

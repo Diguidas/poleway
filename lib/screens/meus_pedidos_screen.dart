@@ -102,8 +102,8 @@ class _MeusPedidosScreenState extends State<MeusPedidosScreen> {
               color: p.laranja,
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final larguraConteudo = constraints.maxWidth > 1100
-                      ? 1100.0
+                  final larguraConteudo = constraints.maxWidth > 1500
+                      ? 1500.0
                       : constraints.maxWidth;
                   final margemLateral =
                       (constraints.maxWidth - larguraConteudo) / 2 +
@@ -148,7 +148,7 @@ class _MeusPedidosScreenState extends State<MeusPedidosScreen> {
                       const SizedBox(height: 40),
                       _buildSecao(
                         p,
-                        'Entregues',
+                        'Finalizados',
                         entregues,
                         dados.documentoPorOrdem,
                         isDesktop,
@@ -213,7 +213,7 @@ class _MeusPedidosScreenState extends State<MeusPedidosScreen> {
       ),
       _ResumoCard(
         icone: Icons.check_circle_outline,
-        label: 'Entregues',
+        label: 'Finalizados',
         valor: '$entregues',
         cor: p.verde,
       ),
@@ -298,20 +298,34 @@ class _MeusPedidosScreenState extends State<MeusPedidosScreen> {
             ),
           )
         else if (isDesktop)
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 2.9,
-            ),
-            itemCount: pedidos.length,
-            itemBuilder: (context, i) => _PedidoCard(
-              pedido: pedidos[i],
-              documento: documentoPorOrdem[pedidos[i].ordem],
-            ),
+          Column(
+            children: [
+              for (var i = 0; i < pedidos.length; i += 2) ...[
+                if (i > 0) const SizedBox(height: 16),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _PedidoCard(
+                          pedido: pedidos[i],
+                          documento: documentoPorOrdem[pedidos[i].ordem],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: i + 1 < pedidos.length
+                            ? _PedidoCard(
+                                pedido: pedidos[i + 1],
+                                documento: documentoPorOrdem[pedidos[i + 1].ordem],
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           )
         else
           Column(
@@ -599,15 +613,16 @@ class _PedidoCard extends StatelessWidget {
           );
         },
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Container(
-                    width: 48,
-                    height: 48,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
                       color: p.laranjaSuave,
                       borderRadius: BorderRadius.circular(12),

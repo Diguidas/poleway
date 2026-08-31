@@ -10,10 +10,14 @@ class StatusChip extends StatelessWidget {
     switch (status.toLowerCase()) {
       case 'faturado':
         return p.verde;
+      case 'faturado parcial':
+        return p.amarelo;
       case 'recusado':
         return p.vermelho;
-      case 'em andamento':
+      case 'liberado para faturamento':
+      case 'a faturar':
         return p.laranja;
+      case 'aguardando liberação':
       default:
         return p.azul;
     }

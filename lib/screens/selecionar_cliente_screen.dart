@@ -98,8 +98,8 @@ class _SelecionarClienteScreenState extends State<SelecionarClienteScreen> {
 
             return LayoutBuilder(
               builder: (context, constraints) {
-                final larguraConteudo = constraints.maxWidth > 900
-                    ? 900.0
+                final larguraConteudo = constraints.maxWidth > 1300
+                    ? 1300.0
                     : constraints.maxWidth;
                 final margemLateral =
                     (constraints.maxWidth - larguraConteudo) / 2 + 20;

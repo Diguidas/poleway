@@ -12,6 +12,7 @@ class AppPalette {
   final Color verde;
   final Color vermelho;
   final Color azul;
+  final Color amarelo;
 
   const AppPalette({
     required this.laranja,
@@ -25,6 +26,7 @@ class AppPalette {
     required this.verde,
     required this.vermelho,
     required this.azul,
+    required this.amarelo,
   });
 
   static const light = AppPalette(
@@ -39,6 +41,7 @@ class AppPalette {
     verde: Color(0xFF4CAF7D),
     vermelho: Color(0xFFE0644B),
     azul: Color(0xFF5B8DEF),
+    amarelo: Color(0xFFD6A930),
   );
 
   static const dark = AppPalette(
@@ -53,6 +56,7 @@ class AppPalette {
     verde: Color(0xFF6BC998),
     vermelho: Color(0xFFE8836C),
     azul: Color(0xFF7DA3F5),
+    amarelo: Color(0xFFE0BC5C),
   );
 
   static AppPalette of(BuildContext context) {
